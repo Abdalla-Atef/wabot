@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>مساعد الواتساب الذكي</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            height: 100vh;
+            padding: 30px 20px;
+            overflow: hidden;
+        }
+        .header { text-align: center; width: 100%; }
+        .header h1 { font-size: 1.4rem; color: #38bdf8; margin-bottom: 5px; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            background: #1e293b;
+            color: #94a3b8;
+        }
+        .chat-box {
+            width: 100%;
+            max-width: 400px;
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 20px;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            border: 1px solid #334155;
+        }
+        .user-text { color: #94a3b8; font-size: 0.95rem; margin-bottom: 12px; }
+        .ai-reply { color: #f8fafc; font-size: 1.2rem; font-weight: bold; line-height: 1.5; }
+        
+        .mic-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .mic-btn {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            color: white;
+            font-size: 2.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+            transition: all 0.2s ease;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mic-btn.listening {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.7);
+            animation: pulse 1.2s infinite;
+        }
+        .mic-hint { margin-top: 15px; color: #64748b; font-size: 0.9rem; }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+            justify-content: center;
+        }
+        .chip {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>مساعد الواتساب الخفي ⚡</h1>
+        <span class="status-badge" id="statusText">جاهز للأوامر</span>
+    </div>
+
+    <div class="chat-box">
+        <div class="user-text" id="userText">اضغط على المايك واتكلم...</div>
+        <div class="ai-reply" id="aiReply">صباح الفل! قولي تحب نبعت لمين أو نشوف الرسايل؟</div>
+    </div>
+
+    <div class="quick-actions">
+        <button class="chip" onclick="sendCommand('مين بعتلي رسايل على الواتساب؟')">📩 مين بعتلي رسايل؟</button>
+        <button class="chip" onclick="sendCommand('اقرأ الرسايل كلها')">🔊 اقرأ الرسايل</button>
+    </div>
+
+    <div class="mic-container">
+        <button class="mic-btn" id="micBtn" onclick="toggleListening()">🎙️</button>
+        <div class="mic-hint" id="micHint">لمسة واحدة وتكلم على طول</div>
+    </div>
+
+    <script>
+        const micBtn = document.getElementById('micBtn');
+        const statusText = document.getElementById('statusText');
+        const userText = document.getElementById('userText');
+        const aiReply = document.getElementById('aiReply');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isListening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ar-EG';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.classList.add('listening');
+                statusText.innerText = 'بسمعك... اتكلم';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                userText.innerText = `"${transcript}"`;
+                sendCommand(transcript);
+            };
+
+            recognition.onerror = () => {
+                stopListening();
+                statusText.innerText = 'مسمعتش كويس، جرب تاني';
+            };
+
+            recognition.onend = () => {
+                stopListening();
+            };
+        } else {
+            alert('المتصفح مش بيدعم المايك، افتحه من Google Chrome.');
+        }
+
+        function toggleListening() {
+            if (isListening) {
+                recognition.stop();
+            } else {
+                window.speechSynthesis.cancel();
+                recognition.start();
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            micBtn.classList.remove('listening');
+        }
+
+        async function sendCommand(commandText) {
+            statusText.innerText = 'جاري التنفيذ... ⏳';
+            userText.innerText = `"${commandText}"`;
+            aiReply.innerText = '...';
+
+            try {
+                const res = await fetch('/api/assistant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: commandText })
+                });
+                const data = await res.json();
+                
+                aiReply.innerText = data.reply;
+                statusText.innerText = 'تم التنفيذ ✅';
+                speakArabic(data.reply);
+            } catch (err) {
+                aiReply.innerText = 'مقدرتش أوصل للسيرفر.';
+                statusText.innerText = 'خطأ في الاتصال ❌';
+            }
+        }
+
+        function speakArabic(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ar-EG';
+                utterance.rate = 1.05;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+    </script>
+</body>
+</html>
